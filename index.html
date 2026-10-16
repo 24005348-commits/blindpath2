@@ -254,8 +254,8 @@
   style="width:100%;padding:12px;border:1px solid #ccd3dd;border-radius:7px;font:15px Arial,sans-serif;"
 ></textarea>
 
-<button id="reportBtn" type="button" 
-  onclick="submitCurrentReport()">
+
+<button id="reportBtn" type="button" onclick="submitCurrentReport()">
   Report an issue at my location
 </button>
 <div id="reportStatus" role="status" aria-live="polite"></div>
@@ -381,6 +381,7 @@ function setReportStatus(message) {
 }
 
 async function submitCurrentReport() {
+  alert("Report button clicked!");
   const button = document.getElementById("reportBtn");
   const issueType = document.getElementById("issueType").value;
   const description =
