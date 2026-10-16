@@ -157,11 +157,14 @@
     <section class="panel">
       <h2>Plan your journey</h2>
 
-      <label for="mode">Travel Mode</label>
-+     <select id="mode" onchange="onModeChanged()">
-+      option value="walking" selected>Walking (Pedestrian & Sidewalks)</option>
-+      <option value="driving">Driving (Vehicle)</option>
-+     </select>
+      
+<label for="mode">Travel Mode</label>
+<select id="mode" onchange="onModeChanged()">
+  <option value="walking">Walking</option>
+  <option value="cycling">Cycling</option>
+  <option value="driving">Driving</option>
+</select>
+
 
       <label for="start">Starting point</label>
       <input
@@ -218,6 +221,45 @@
         Estimates depend on the routing service and available road data.
         This is a learning project, not an emergency navigation service.
       </p>
+      
+<hr>
+
+<h2>Report a Tactile Path Issue</h2>
+<p class="hint">
+  Help other visually impaired users identify obstacles.
+</p>
+
+<label for="issueType">Problem type</label>
+<select id="issueType">
+  <option value="blocked_vehicle">
+    Vehicle blocking tactile path
+  </option>
+  <option value="construction">
+    Construction or roadwork
+  </option>
+  <option value="damaged_tactile_path">
+    Damaged tactile paving
+  </option>
+  <option value="other_obstacle">
+    Other obstacle
+  </option>
+</select>
+
+<label for="reportDescription">Description (optional)</label>
+<textarea
+  id="reportDescription"
+  maxlength="500"
+  rows="3"
+  placeholder="Describe the obstacle..."
+  style="width:100%;padding:12px;border:1px solid #ccd3dd;border-radius:7px;font:15px Arial,sans-serif;"
+></textarea>
+
+<button id="reportBtn" type="button" onclick="submitCurrentReport()">
+  Report an issue at my location
+</button>
+
+<div id="reportStatus" role="status" aria-live="polite"></div>
+
     </section>
 
     <section class="panel">
@@ -239,9 +281,25 @@
   <!-- Leaflet map library -->
   <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
 
+  
+<script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+
+
   <script>
     // 1. Create the map, initially centered on Kuala Lumpur.
     const map = L.map("map").setView([3.139, 101.6869], 12);
+    
+const SUPABASE_URL = “https://ywbqchhcpcygkutcvsrp.supabase.co/rest/v1/”;
+const SUPABASE_KEY = "sb_publishable_Tjr7GVrlV79vEOFSMuCMhQ_Obypbd0I";
+
+const supabaseClient = window.supabase.createClient(
+  SUPABASE_URL,
+  SUPABASE_KEY
+);
+
+console.log("Supabase client initialized");
+
 
     // 2. Add OpenStreetMap tiles and attribution.
     L.tileLayer(
@@ -299,11 +357,159 @@
       document.getElementById("tactileCount").textContent = "—";
       document.getElementById("googleBtn").disabled = true;
 
-      if (tactileLayer) {
-        map.removeLayer(tactileLayer);
-        tactileLayer = null;
-      } 
     }
+    
+let voiceGuidanceEnabled = true;
+
+// A separate map layer for community reports.
+// Do not remove this layer when clearing a navigation route.
+let tactileLayer = L.layerGroup().addTo(map);
+
+const issueLabels = {
+  blocked_vehicle: "车辆阻挡盲道",
+  construction: "施工或围挡",
+  damaged_tactile_path: "盲道损坏",
+  other_obstacle: "其他障碍物"
+};
+
+function setStatus(message) {
+  document.getElementById("status").textContent = message;
+}
+
+function setReportStatus(message) {
+  document.getElementById("reportStatus").textContent = message;
+}
+
+async function submitCurrentReport() {
+  const button = document.getElementById("reportBtn");
+  const issueType = document.getElementById("issueType").value;
+  const description =
+    document.getElementById("reportDescription").value.trim();
+
+  if (!navigator.geolocation) {
+    setReportStatus("Your browser does not support GPS location.");
+    return;
+  }
+
+  button.disabled = true;
+  setReportStatus("Getting your location...");
+
+  navigator.geolocation.getCurrentPosition(
+    async position => {
+      try {
+        const latitude = position.coords.latitude;
+        const longitude = position.coords.longitude;
+
+        setReportStatus("Submitting your report...");
+
+        const { error } = await supabaseClient
+          .from("tactile_reports")
+          .insert([{
+            issue_type: issueType,
+            description: description.slice(0, 500),
+            latitude,
+            longitude
+          }]);
+
+        if (error) {
+          console.error("Supabase insert error:", error.message);
+          throw new Error(
+            "Report failed. Please check your connection and database permissions."
+          );
+        }
+
+        setReportStatus(
+          "Report submitted. Thank you for helping other users."
+        );
+
+        document.getElementById("reportDescription").value = "";
+
+        await loadTactileReports();
+
+      } catch (error) {
+        setReportStatus(error.message || "Unable to submit report.");
+      } finally {
+        button.disabled = false;
+      }
+    },
+    error => {
+      const messages = {
+        1: "Location permission was denied.",
+        2: "Your location is unavailable.",
+        3: "Getting your location timed out."
+      };
+
+      setReportStatus(
+        messages[error.code] || "Unable to obtain your location."
+      );
+      button.disabled = false;
+    },
+    {
+      enableHighAccuracy: true,
+      timeout: 15000,
+      maximumAge: 0
+    }
+  );
+}
+
+async function loadTactileReports() {
+  const { data, error } = await supabaseClient
+    .from("tactile_reports")
+    .select(
+      "id, issue_type, description, latitude, longitude, status, created_at"
+    )
+    .eq("status", "open")
+    .order("created_at", { ascending: false })
+    .limit(500);
+
+  if (error) {
+    console.error("Could not load reports:", error.message);
+    return;
+  }
+
+  tactileLayer.clearLayers();
+
+  for (const report of data) {
+    const marker = L.circleMarker(
+      [report.latitude, report.longitude],
+      {
+        radius: 9,
+        color: "#a12626",
+        fillColor: "#e53935",
+        fillOpacity: 0.9,
+        weight: 2
+      }
+    );
+
+    // Use textContent so user-submitted descriptions
+    // are treated as text, not executable HTML.
+    const popup = document.createElement("div");
+
+    const title = document.createElement("strong");
+    title.textContent =
+      issueLabels[report.issue_type] || "盲道问题";
+
+    const description = document.createElement("p");
+    description.textContent =
+      report.description || "没有补充描述";
+
+    const time = document.createElement("p");
+    time.textContent =
+      "报告时间：" +
+      new Date(report.created_at).toLocaleString();
+
+    popup.append(title, description, time);
+    marker.bindPopup(popup);
+    marker.addTo(tactileLayer);
+  }
+
+  document.getElementById("tactileCount").textContent =
+    String(data.length);
+}
+
+// Load shared reports when the page starts.
+loadTactileReports();
+
 
 
     // 3. Convert a place name into latitude and longitude.
