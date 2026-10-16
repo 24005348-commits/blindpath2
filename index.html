@@ -412,11 +412,10 @@ async function submitCurrentReport() {
           }]);
 
         if (error) {
-          console.error("Supabase insert error:", error.message);
-          throw new Error(
-            "Report failed. Please check your connection and database permissions."
-          );
-        }
+  console.error("Supabase insert error:", error);
+  setReportStatus("提交失败：" + error.message);
+  return;
+}
 
         setReportStatus(
           "Report submitted. Thank you for helping other users."
