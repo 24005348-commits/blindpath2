@@ -217,17 +217,39 @@
       </div>
 
 
-      <p class="hint">
-        Estimates depend on the routing service and available road data.
-        This is a learning project, not an emergency navigation service.
-      </p>
       
+<p class="hint">
+  Estimates depend on the routing service and available road data.
+  This is a learning project, not an emergency navigation service.
+</p>
+
+<!-- 新增：附近障碍物语音提醒 -->
+<hr>
+
+<h2>Nearby Obstacle Voice Alerts</h2>
+
+<p class="hint">
+  Receive voice warnings about reported tactile path obstacles nearby.
+</p>
+
+<button id="nearbyAlertBtn" type="button">
+  Enable Nearby Obstacle Alerts
+</button>
+
+<div
+  id="nearbyAlertStatus"
+  role="status"
+  aria-live="polite"
+></div>
+
+<!-- 原来的举报栏，从这里继续保留 -->
 <hr>
 
 <h2>Report a Tactile Path Issue</h2>
 <p class="hint">
   Help other visually impaired users identify obstacles.
 </p>
+
 
 <label for="issueType">Problem type</label>
 <select id="issueType">
@@ -245,6 +267,7 @@
   </option>
 </select>
 
+
 <label for="reportDescription">Description (optional)</label>
 <textarea
   id="reportDescription"
@@ -254,13 +277,35 @@
   style="width:100%;padding:12px;border:1px solid #ccd3dd;border-radius:7px;font:15px Arial,sans-serif;"
 ></textarea>
 
+<!-- 新增：照片或视频上传 -->
+<label for="reportMedia">Upload Photo or Video (optional)</label>
 
-<button id="reportBtn" type="button" onclick="submitCurrentReport()">
+<input
+  id="reportMedia"
+  type="file"
+  accept="image/jpeg,image/png,image/webp,video/mp4,video/webm"
+  capture="environment"
+  style="width:100%;margin:10px 0;"
+/>
+
+<p class="hint">
+  Supported: JPG, PNG, WebP, MP4, WebM. Maximum 20 MB per file.
+</p>
+
+<div id="mediaPreview" aria-live="polite"></div>
+
+<!-- 原来的举报按钮，保留不要重复添加 -->
+<button
+  id="reportBtn"
+  type="button"
+  onclick="submitCurrentReport()"
+>
   Report an issue at my location
 </button>
-<div id="reportStatus" role="status" aria-live="polite"></div>
 
-    </section>
+<div id="reportStatus" role="status" aria-live="polite"></div>
+</section>
+
 
     <section class="panel">
       <h2>Map</h2>
@@ -456,8 +501,8 @@ async function loadTactileReports() {
   const { data, error } = await supabaseClient
     .from("tactile_reports")
     .select(
-      "id, issue_type, description, latitude, longitude, status, created_at"
-    )
+  "id, issue_type, description, latitude, longitude, status, created_at, media_url, media_type"
+)
     .eq("status", "open")
     .order("created_at", { ascending: false })
     .limit(500);
@@ -499,6 +544,32 @@ async function loadTactileReports() {
       new Date(report.created_at).toLocaleString();
 
     popup.append(title, description, time);
+    
+if (report.media_url) {
+  if (report.media_type === "image") {
+    const img = document.createElement("img");
+    img.src = report.media_url;
+    img.alt = "举报现场照片";
+    img.loading = "lazy";
+    img.style.maxWidth = "220px";
+    img.style.width = "100%";
+    img.style.height = "auto";
+    img.style.borderRadius = "8px";
+    img.style.marginTop = "8px";
+    popup.appendChild(img);
+
+  } else if (report.media_type === "video") {
+    const video = document.createElement("video");
+    video.src = report.media_url;
+    video.controls = true;
+    video.preload = "metadata";
+    video.style.maxWidth = "220px";
+    video.style.width = "100%";
+    video.style.marginTop = "8px";
+    popup.appendChild(video);
+  }
+}
+
     marker.bindPopup(popup);
     marker.addTo(tactileLayer);
   }
@@ -781,6 +852,242 @@ loadTactileReports();
       setStatus("Map cleared. Enter a new journey to begin.");
       map.setView([3.139, 101.6869], 12);
     }
+    let nearbyAlertWatchId = null;
+let nearbyReportsCache = [];
+let nearbyRefreshTimer = null;
+const alertedReportIds = new Set();
+
+const nearbyAlertBtn =
+  document.getElementById("nearbyAlertBtn");
+
+const nearbyAlertStatus =
+  document.getElementById("nearbyAlertStatus");
+
+function speakNearbyAlert(message) {
+  if (!("speechSynthesis" in window)) {
+    nearbyAlertStatus.textContent =
+      "此浏览器不支持语音播报。";
+    return;
+  }
+
+  // 避免语音排队过长
+  window.speechSynthesis.cancel();
+
+  const utterance = new SpeechSynthesisUtterance(message);
+  utterance.lang = "zh-CN";
+  utterance.rate = 1;
+  utterance.pitch = 1;
+
+  window.speechSynthesis.speak(utterance);
+}
+
+async function refreshNearbyReports() {
+  const { data, error } = await supabaseClient
+    .from("tactile_reports")
+    .select(
+      "id, issue_type, latitude, longitude, status, created_at"
+    )
+    .eq("status", "open")
+    .order("created_at", { ascending: false })
+    .limit(500);
+
+  if (error) {
+    console.error("Nearby reports error:", error);
+    nearbyAlertStatus.textContent =
+      "暂时无法更新附近的障碍物报告。";
+    return;
+  }
+
+  nearbyReportsCache = data || [];
+}
+
+function getDistanceMeters(lat1, lon1, lat2, lon2) {
+  const toRad = value => value * Math.PI / 180;
+  const earthRadius = 6371000;
+
+  const dLat = toRad(lat2 - lat1);
+  const dLon = toRad(lon2 - lon1);
+
+  const a =
+    Math.sin(dLat / 2) ** 2 +
+    Math.cos(toRad(lat1)) *
+    Math.cos(toRad(lat2)) *
+    Math.sin(dLon / 2) ** 2;
+
+  return earthRadius *
+    2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
+}
+
+function getBearingDegrees(lat1, lon1, lat2, lon2) {
+  const toRad = value => value * Math.PI / 180;
+  const toDeg = value => value * 180 / Math.PI;
+
+  const p1 = toRad(lat1);
+  const p2 = toRad(lat2);
+  const dLon = toRad(lon2 - lon1);
+
+  const y = Math.sin(dLon) * Math.cos(p2);
+  const x =
+    Math.cos(p1) * Math.sin(p2) -
+    Math.sin(p1) * Math.cos(p2) * Math.cos(dLon);
+
+  return (toDeg(Math.atan2(y, x)) + 360) % 360;
+}
+
+function angleDifference(a, b) {
+  return Math.abs(((a - b + 540) % 360) - 180);
+}
+
+function checkNearbyObstacles(position) {
+  const lat = position.coords.latitude;
+  const lon = position.coords.longitude;
+  const heading = position.coords.heading;
+  const accuracy = position.coords.accuracy || 100;
+
+  // GPS 不准确时扩大安全缓冲，不播报精确距离
+  const gpsIsUncertain = accuracy > 35;
+
+  for (const report of nearbyReportsCache) {
+    if (report.status !== "open") continue;
+    if (alertedReportIds.has(String(report.id))) continue;
+
+    const distance = getDistanceMeters(
+      lat,
+      lon,
+      report.latitude,
+      report.longitude
+    );
+
+    // 位置不准确时，避免过早或过度精确播报
+    const nearLimit = gpsIsUncertain ? 15 : 35;
+
+    if (distance > nearLimit) continue;
+
+    // 有方向时，只提醒行进方向前方约 65 度范围
+    if (
+      Number.isFinite(heading) &&
+      distance > 5
+    ) {
+      const bearing = getBearingDegrees(
+        lat,
+        lon,
+        report.latitude,
+        report.longitude
+      );
+
+      if (angleDifference(heading, bearing) > 65) {
+        continue;
+      }
+    } else if (distance > 15) {
+      // 没有方向数据时，只提醒更近的报告
+      continue;
+    }
+
+    alertedReportIds.add(String(report.id));
+
+    const issueName =
+      issueLabels[report.issue_type] || "障碍物";
+
+    const distanceText = gpsIsUncertain
+      ? "附近"
+      : distance < 10
+        ? "约十米以内"
+        : "约" + Math.round(distance / 5) * 5 + "米";
+
+    const message =
+      "注意，" + distanceText + "有" + issueName +
+      "。请减速并谨慎确认周围路况。";
+
+    nearbyAlertStatus.textContent = message;
+    speakNearbyAlert(message);
+
+    // 一次只播报一个障碍物，避免连续语音重叠
+    break;
+  }
+}
+
+async function startNearbyAlerts() {
+  if (nearbyAlertWatchId !== null) return;
+
+  if (!navigator.geolocation) {
+    nearbyAlertStatus.textContent =
+      "浏览器不支持定位功能。";
+    return;
+  }
+
+  // 必须由用户点击开启，以满足浏览器语音交互限制
+  speakNearbyAlert("附近障碍物语音提醒已开启。");
+
+  nearbyAlertBtn.disabled = true;
+  nearbyAlertStatus.textContent =
+    "正在获取位置和附近报告……";
+
+  try {
+    await refreshNearbyReports();
+  } catch (error) {
+    console.error(error);
+  }
+
+  nearbyAlertWatchId = navigator.geolocation.watchPosition(
+    position => {
+      checkNearbyObstacles(position);
+      nearbyAlertBtn.disabled = false;
+      nearbyAlertBtn.textContent = "关闭附近障碍物提醒";
+      nearbyAlertStatus.textContent =
+        "附近障碍物提醒已开启。";
+    },
+    error => {
+      const messages = {
+        1: "请允许浏览器访问位置。",
+        2: "暂时无法获取 GPS 位置。",
+        3: "定位超时，请尝试移到信号更好的地方。"
+      };
+
+      nearbyAlertStatus.textContent =
+        messages[error.code] || "定位失败。";
+
+      nearbyAlertBtn.disabled = false;
+    },
+    {
+      enableHighAccuracy: true,
+      maximumAge: 3000,
+      timeout: 15000
+    }
+  );
+
+  nearbyRefreshTimer = setInterval(
+    refreshNearbyReports,
+    30000
+  );
+}
+
+function stopNearbyAlerts() {
+  if (nearbyAlertWatchId !== null) {
+    navigator.geolocation.clearWatch(nearbyAlertWatchId);
+    nearbyAlertWatchId = null;
+  }
+
+  if (nearbyRefreshTimer !== null) {
+    clearInterval(nearbyRefreshTimer);
+    nearbyRefreshTimer = null;
+  }
+
+  if ("speechSynthesis" in window) {
+    window.speechSynthesis.cancel();
+  }
+
+  nearbyAlertBtn.disabled = false;
+  nearbyAlertBtn.textContent = "开启附近障碍物提醒";
+  nearbyAlertStatus.textContent = "附近障碍物提醒已关闭。";
+}
+
+nearbyAlertBtn.addEventListener("click", () => {
+  if (nearbyAlertWatchId === null) {
+    startNearbyAlerts();
+  } else {
+    stopNearbyAlerts();
+  }
+});
   </script>
 </body>
 </html>
