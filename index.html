@@ -1,4 +1,3 @@
-
 <!DOCTYPE html>
 <html lang="en">
 <head>
@@ -156,15 +155,13 @@
   <main class="container">
     <section class="panel">
       <h2>Plan your journey</h2>
-
       
-    <label for="mode">Travel Mode</label>
-    <select id="mode" onchange="onModeChanged()">
-      <option value="walking">Walking</option>
-      <option value="cycling">Cycling</option>
-      <option value="driving">Driving</option>
-    </select>
-  
+      <label for="mode">Travel Mode</label>
+      <select id="mode" onchange="onModeChanged()">
+        <option value="walking">Walking</option>
+        <option value="cycling">Cycling</option>
+        <option value="driving">Driving</option>
+      </select>
 
       <label for="start">Starting point</label>
       <input
@@ -189,8 +186,8 @@
       </button>
       
       <button class="accent" type="button" onclick="toggleVoiceAnnouncements()">
-+       Toggle Voice Guidance: <span id="voiceStatus">ON</span>
-+     </button>
+        Toggle Voice Guidance: <span id="voiceStatus">ON</span>
+      </button>
 
       <button class="secondary" type="button" onclick="clearRoute()">
         Clear
@@ -211,109 +208,92 @@
         </div>
 
         <div class="stat tactile-highlight">
-+          Tactile Blind Paths Detected
-+          <strong id="tactileCount">—</strong>
-+       </div>
+          Tactile Blind Paths Detected
+          <strong id="tactileCount">—</strong>
+        </div>
       </div>
-
-
       
-<p class="hint">
-  Estimates depend on the routing service and available road data.
-  This is a learning project, not an emergency navigation service.
-</p>
+      <p class="hint">
+        Estimates depend on the routing service and available road data.
+        This is a learning project, not an emergency navigation service.
+      </p>
 
-<!-- 新增：附近障碍物语音提醒 -->
-<hr>
+      <!-- Nearby obstacle voice alerts -->
+      <hr>
 
-<h2>Nearby Obstacle Voice Alerts</h2>
+      <h2>Nearby Obstacle Voice Alerts</h2>
 
-<p class="hint">
-  Receive voice warnings about reported tactile path obstacles nearby.
-</p>
+      <p class="hint">
+        Receive voice warnings about reported tactile path obstacles nearby.
+      </p>
 
-<button id="nearbyAlertBtn" type="button">
-  Enable Nearby Obstacle Alerts
-</button>
+      <button id="nearbyAlertBtn" type="button">
+        Enable Nearby Obstacle Alerts
+      </button>
 
-<div
-  id="nearbyAlertStatus"
-  role="status"
-  aria-live="polite"
-></div>
+      <div
+        id="nearbyAlertStatus"
+        role="status"
+        aria-live="polite"
+      ></div>
 
-<!-- 原来的举报栏，从这里继续保留 -->
-<hr>
+      <!-- Community tactile path reports -->
+      <hr>
 
-<h2>Report a Tactile Path Issue</h2>
-<p class="hint">
-  Help other visually impaired users identify obstacles.
-</p>
+      <h2>Report a Tactile Path Issue</h2>
+      <p class="hint">
+        Help other visually impaired users identify obstacles.
+      </p>
 
+      <label for="issueType">Problem type</label>
+      <select id="issueType">
+        <option value="blocked_vehicle">
+          Vehicle blocking tactile path
+        </option>
+        <option value="construction">
+          Construction or roadwork
+        </option>
+        <option value="damaged_tactile_path">
+          Damaged tactile paving
+        </option>
+        <option value="other_obstacle">
+          Other obstacle
+        </option>
+      </select>
 
-<label for="issueType">Problem type</label>
-<select id="issueType">
-  <option value="blocked_vehicle">
-    Vehicle blocking tactile path
-  </option>
-  <option value="construction">
-    Construction or roadwork
-  </option>
-  <option value="damaged_tactile_path">
-    Damaged tactile paving
-  </option>
-  <option value="other_obstacle">
-    Other obstacle
-  </option>
-</select>
+      <label for="reportDescription">Description (optional)</label>
+      <textarea
+        id="reportDescription"
+        maxlength="500"
+        rows="3"
+        placeholder="Describe the obstacle..."
+        style="width:100%;padding:12px;border:1px solid #ccd3dd;border-radius:7px;font:15px Arial,sans-serif;"
+      ></textarea>
 
+      <label for="reportMedia">Upload Photo or Video (optional)</label>
+      <input
+        id="reportMedia"
+        type="file"
+        accept="image/jpeg,image/png,image/webp,video/mp4,video/webm"
+        capture="environment"
+        style="width:100%;margin:10px 0;"
+      >
+      <p class="hint">
+        Supported: JPG, PNG, WebP, MP4, WebM. Maximum 20 MB per file.
+      </p>
 
-<label for="reportDescription">Description (optional)</label>
-<textarea
-  id="reportDescription"
-  maxlength="500"
-  rows="3"
-  placeholder="Describe the obstacle..."
-  style="width:100%;padding:12px;border:1px solid #ccd3dd;border-radius:7px;font:15px Arial,sans-serif;"
-></textarea>
-
-<label for="reportMedia">举报现场照片或视频（可选）</label>
-<input
-  id="reportMedia"
-  type="file"
-  accept="image/jpeg,image/png,image/webp,video/mp4,video/webm"
-  capture="environment"
-  style="width:100%; margin:10px 0;"
->
-<p>支持 JPG、PNG、WebP、MP4、WebM，最大 20 MB。</p>
+      <div id="mediaPreview" aria-live="polite"></div>
       
-<label for="reportMedia">Upload Photo or Video (optional)</label>
+      <button
+        id="reportBtn"
+        type="button"
+        onclick="submitCurrentReport()"
+      >
+        Report an issue at my location
+      </button>
 
-      
-<input
-  id="reportMedia"
-  type="file"
-  accept="image/jpeg,image/png,image/webp,video/mp4,video/webm"
-  capture="environment"
-  style="width:100%;margin:10px 0;"
-/>
-
-<p class="hint">
-  Supported: JPG, PNG, WebP, MP4, WebM. Maximum 20 MB per file.
-</p>
-
-<div id="mediaPreview" aria-live="polite"></div>
-<button
-  id="reportBtn"
-  type="button"
-  onclick="submitCurrentReport()"
->
-  Report an issue at my location
-</button>
-
-<div id="reportStatus" role="status" aria-live="polite"></div>
-</section>
-
+      <div id="reportStatus" role="status" aria-live="polite"></div>
+    </section>
 
     <section class="panel">
       <h2>Map</h2>
@@ -334,25 +314,22 @@
   <!-- Leaflet map library -->
   <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
 
-  
-<script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
-<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
-
+  <!-- Supabase JS Library -->
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 
   <script>
     // 1. Create the map, initially centered on Kuala Lumpur.
     const map = L.map("map").setView([3.139, 101.6869], 12);
     
-const SUPABASE_URL = "https://ywbqchhcpcygkutcvsrp.supabase.co";
-const SUPABASE_KEY = "sb_publishable_Tjr7GVrlV79vEOFSMuCMhQ_Obypbd0I";
+    const SUPABASE_URL = "https://ywbqchhcpcygkutcvsrp.supabase.co";
+    const SUPABASE_KEY = "sb_publishable_Tjr7GVrlV79vEOFSMuCMhQ_Obypbd0I";
 
-const supabaseClient = window.supabase.createClient(
-  SUPABASE_URL,
-  SUPABASE_KEY
-);
+    const supabaseClient = window.supabase.createClient(
+      SUPABASE_URL,
+      SUPABASE_KEY
+    );
 
-console.log("Supabase client initialized");
-
+    console.log("Supabase client initialized");
 
     // 2. Add OpenStreetMap tiles and attribution.
     L.tileLayer(
@@ -409,245 +386,262 @@ console.log("Supabase client initialized");
       document.getElementById("duration").textContent = "—";
       document.getElementById("tactileCount").textContent = "—";
       document.getElementById("googleBtn").disabled = true;
-
     }
     
-let voiceGuidanceEnabled = true;
+    let voiceGuidanceEnabled = true;
 
-// A separate map layer for community reports.
-// Do not remove this layer when clearing a navigation route.
-let tactileLayer = L.layerGroup().addTo(map);
+    // A separate map layer for community reports.
+    let tactileLayer = L.layerGroup().addTo(map);
 
-const issueLabels = {
-  blocked_vehicle: "车辆阻挡盲道",
-  construction: "施工或围挡",
-  damaged_tactile_path: "盲道损坏",
-  other_obstacle: "其他障碍物"
-};
+    const issueLabels = {
+      blocked_vehicle: "Vehicle blocking tactile path",
+      construction: "Construction or roadwork",
+      damaged_tactile_path: "Damaged tactile paving",
+      other_obstacle: "Other obstacle"
+    };
 
-function setStatus(message) {
-  document.getElementById("status").textContent = message;
-}
+    function setStatus(message) {
+      document.getElementById("status").textContent = message;
+    }
 
-function setReportStatus(message) {
-  document.getElementById("reportStatus").textContent = message;
-}
+    function setReportStatus(message) {
+      document.getElementById("reportStatus").textContent = message;
+    }
 
-async function submitCurrentReport() {
-  alert("Report button clicked!");
-  const button = document.getElementById("reportBtn");
-  const issueType = document.getElementById("issueType").value;
-  const description =
-    document.getElementById("reportDescription").value.trim();
+    const reportMediaInput = document.getElementById("reportMedia");
+    if (reportMediaInput) {
+      reportMediaInput.addEventListener("change", () => {
+        const preview = document.getElementById("mediaPreview");
+        preview.replaceChildren();
 
-  if (!navigator.geolocation) {
-    setReportStatus("Your browser does not support GPS location.");
-    return;
-  }
+        const file = reportMediaInput.files && reportMediaInput.files[0];
+        if (!file) return;
 
-  button.disabled = true;
- setReportStatus("Submitting your report...");
+        const note = document.createElement("p");
+        note.className = "hint";
+        note.textContent = "Selected file: " + file.name;
+        preview.appendChild(note);
+      });
+    }
 
-let mediaUrl = null;
-let mediaType = null;
+    async function submitCurrentReport() {
+      const button = document.getElementById("reportBtn");
+      const issueType = document.getElementById("issueType").value;
+      const description = document.getElementById("reportDescription").value.trim();
+      const mediaInput = document.getElementById("reportMedia");
 
-const mediaInput = document.getElementById("reportMedia");
-const file = mediaInput?.files?.[0];
+      if (!navigator.geolocation) {
+        setReportStatus("Your browser does not support GPS location.");
+        return;
+      }
 
-if (file) {
-  const allowedTypes = [
-    "image/jpeg",
-    "image/png",
-    "image/webp",
-    "video/mp4",
-    "video/webm"
-  ];
+      button.disabled = true;
 
-  if (!allowedTypes.includes(file.type)) {
-    setReportStatus("不支持此照片或视频格式。");
-    button.disabled = false;
-    return;
-  }
+      try {
+        setReportStatus("Getting your location...");
 
-  if (file.size > 20 * 1024 * 1024) {
-    setReportStatus("文件不能超过 20 MB。");
-    button.disabled = false;
-    return;
-  }
+        const position = await new Promise((resolve, reject) => {
+          navigator.geolocation.getCurrentPosition(
+            resolve,
+            reject,
+            {
+              enableHighAccuracy: true,
+              timeout: 15000,
+              maximumAge: 0
+            }
+          );
+        });
 
-  setReportStatus("正在上传照片或视频...");
+        const latitude = position.coords.latitude;
+        const longitude = position.coords.longitude;
+        const file = mediaInput?.files?.[0] || null;
 
-  const extension = file.name.split(".").pop().toLowerCase();
-  const uniqueName =
-    crypto.randomUUID() + "." + extension;
-  const uploadedPath = "reports/" + uniqueName;
+        let mediaUrl = null;
+        let mediaType = null;
 
-  const { error: uploadError } = await supabaseClient
-    .storage
-    .from("tactile-report-media")
-    .upload(uploadedPath, file, {
-      contentType: file.type,
-      upsert: false
-    });
+        if (file) {
+          const allowedTypes = [
+            "image/jpeg",
+            "image/png",
+            "image/webp",
+            "video/mp4",
+            "video/webm"
+          ];
 
-  if (uploadError) {
-    console.error("Media upload error:", uploadError);
-    setReportStatus("媒体上传失败：" + uploadError.message);
-    button.disabled = false;
-    return;
-  }
+          if (!allowedTypes.includes(file.type)) {
+            throw new Error("Unsupported photo or video format.");
+          }
 
-  const { data: publicData } = supabaseClient
-    .storage
-    .from("tactile-report-media")
-    .getPublicUrl(uploadedPath);
+          if (file.size > 20 * 1024 * 1024) {
+            throw new Error("The file must be 20 MB or smaller.");
+          }
 
-  mediaUrl = publicData.publicUrl;
-  mediaType = file.type.startsWith("video/")
-    ? "video"
-    : "image";
-}
+          setReportStatus("Uploading photo or video...");
 
-const { error } = await supabaseClient
-  .from("tactile_reports")
-  .insert([{
-    issue_type: issueType,
-    description: description.slice(0, 500),
-    latitude,
-    longitude,
-    media_url: mediaUrl,
-    media_type: mediaType
-  }]);
+          const extension = file.name.includes(".")
+            ? file.name.split(".").pop().toLowerCase()
+            : (file.type === "image/jpeg" ? "jpg" : "upload");
 
-if (error) {
-  console.error("Supabase insert error:", error);
-  setReportStatus("提交失败：" + error.message);
-  button.disabled = false;
-  return;
-}
+          const uniqueName =
+            (crypto.randomUUID
+              ? crypto.randomUUID()
+              : Date.now() + "-" + Math.random().toString(36).slice(2)) +
+            "." + extension;
 
-        setReportStatus(
-          "Report submitted. Thank you for helping other users."
-        );
+          const uploadedPath = "reports/" + uniqueName;
 
+          const { error: uploadError } = await supabaseClient
+            .storage
+            .from("tactile-report-media")
+            .upload(uploadedPath, file, {
+              contentType: file.type,
+              upsert: false
+            });
+
+          if (uploadError) {
+            console.error("Media upload error:", uploadError);
+            throw new Error("Media upload failed: " + uploadError.message);
+          }
+
+          const { data: publicData } = supabaseClient
+            .storage
+            .from("tactile-report-media")
+            .getPublicUrl(uploadedPath);
+
+          mediaUrl = publicData?.publicUrl || null;
+          mediaType = file.type.startsWith("video/") ? "video" : "image";
+
+          if (!mediaUrl) {
+            throw new Error("The file uploaded, but its public URL could not be created.");
+          }
+        }
+
+        setReportStatus("Submitting your report...");
+
+        const { error: insertError } = await supabaseClient
+          .from("tactile_reports")
+          .insert([{
+            issue_type: issueType,
+            description: description.slice(0, 500),
+            latitude,
+            longitude,
+            media_url: mediaUrl,
+            media_type: mediaType
+          }]);
+
+        if (insertError) {
+          console.error("Supabase insert error:", insertError);
+          throw new Error("Report submission failed: " + insertError.message);
+        }
+
+        setReportStatus("Report submitted successfully. Thank you for helping other users.");
         document.getElementById("reportDescription").value = "";
-  if (mediaInput) {
-  mediaInput.value = "";
-}
+        if (mediaInput) mediaInput.value = "";
+
+        const preview = document.getElementById("mediaPreview");
+        if (preview) preview.replaceChildren();
 
         await loadTactileReports();
-
       } catch (error) {
-        setReportStatus(error.message || "Unable to submit report.");
+        console.error("Report submission error:", error);
+
+        if (error && typeof error.code === "number") {
+          const locationMessages = {
+            1: "Location permission was denied. Please allow location access.",
+            2: "Your location is unavailable. Please try again.",
+            3: "Getting your location timed out. Please try again."
+          };
+          setReportStatus(
+            locationMessages[error.code] || "Unable to obtain your location."
+          );
+        } else {
+          setReportStatus(error.message || "Unable to submit report.");
+        }
       } finally {
         button.disabled = false;
       }
-    },
-    error => {
-      const messages = {
-        1: "Location permission was denied.",
-        2: "Your location is unavailable.",
-        3: "Getting your location timed out."
-      };
-
-      setReportStatus(
-        messages[error.code] || "Unable to obtain your location."
-      );
-      button.disabled = false;
-    },
-    {
-      enableHighAccuracy: true,
-      timeout: 15000,
-      maximumAge: 0
     }
-  );
-}
 
-async function loadTactileReports() {
-  const { data, error } = await supabaseClient
-    .from("tactile_reports")
-    .select(
-  "id, issue_type, description, latitude, longitude, status, created_at, media_url, media_type"
-)
-    .eq("status", "open")
-    .order("created_at", { ascending: false })
-    .limit(500);
+    async function loadTactileReports() {
+      const { data, error } = await supabaseClient
+        .from("tactile_reports")
+        .select(
+          "id, issue_type, description, latitude, longitude, status, created_at, media_url, media_type"
+        )
+        .eq("status", "open")
+        .order("created_at", { ascending: false })
+        .limit(500);
 
-  if (error) {
-    console.error("Could not load reports:", error.message);
-    return;
-  }
-
-  tactileLayer.clearLayers();
-
-  for (const report of data) {
-    const marker = L.circleMarker(
-      [report.latitude, report.longitude],
-      {
-        radius: 9,
-        color: "#a12626",
-        fillColor: "#e53935",
-        fillOpacity: 0.9,
-        weight: 2
+      if (error) {
+        console.error("Could not load reports:", error.message);
+        return;
       }
-    );
 
-    // Use textContent so user-submitted descriptions
-    // are treated as text, not executable HTML.
-    const popup = document.createElement("div");
+      tactileLayer.clearLayers();
 
-    const title = document.createElement("strong");
-    title.textContent =
-      issueLabels[report.issue_type] || "盲道问题";
+      for (const report of data) {
+        const marker = L.circleMarker(
+          [report.latitude, report.longitude],
+          {
+            radius: 9,
+            color: "#a12626",
+            fillColor: "#e53935",
+            fillOpacity: 0.9,
+            weight: 2
+          }
+        );
 
-    const description = document.createElement("p");
-    description.textContent =
-      report.description || "没有补充描述";
+        const popup = document.createElement("div");
 
-    const time = document.createElement("p");
-    time.textContent =
-      "报告时间：" +
-      new Date(report.created_at).toLocaleString();
+        const title = document.createElement("strong");
+        title.textContent =
+          issueLabels[report.issue_type] || "Tactile path issue";
 
-    popup.append(title, description, time);
-    
-if (report.media_url) {
-  if (report.media_type === "image") {
-    const img = document.createElement("img");
-    img.src = report.media_url;
-    img.alt = "举报现场照片";
-    img.loading = "lazy";
-    img.style.maxWidth = "220px";
-    img.style.width = "100%";
-    img.style.height = "auto";
-    img.style.borderRadius = "8px";
-    img.style.marginTop = "8px";
-    popup.appendChild(img);
+        const description = document.createElement("p");
+        description.textContent =
+          report.description || "No additional description";
 
-  } else if (report.media_type === "video") {
-    const video = document.createElement("video");
-    video.src = report.media_url;
-    video.controls = true;
-    video.preload = "metadata";
-    video.style.maxWidth = "220px";
-    video.style.width = "100%";
-    video.style.marginTop = "8px";
-    popup.appendChild(video);
-  }
-}
+        const time = document.createElement("p");
+        time.textContent =
+          "Reported: " +
+          new Date(report.created_at).toLocaleString();
 
-    marker.bindPopup(popup);
-    marker.addTo(tactileLayer);
-  }
+        popup.append(title, description, time);
+        
+        if (report.media_url) {
+          if (report.media_type === "image") {
+            const img = document.createElement("img");
+            img.src = report.media_url;
+            img.alt = "Reported obstacle photo";
+            img.loading = "lazy";
+            img.style.maxWidth = "220px";
+            img.style.width = "100%";
+            img.style.height = "auto";
+            img.style.borderRadius = "8px";
+            img.style.marginTop = "8px";
+            popup.appendChild(img);
+          } else if (report.media_type === "video") {
+            const video = document.createElement("video");
+            video.src = report.media_url;
+            video.controls = true;
+            video.preload = "metadata";
+            video.style.maxWidth = "220px";
+            video.style.width = "100%";
+            video.style.marginTop = "8px";
+            popup.appendChild(video);
+          }
+        }
 
-  document.getElementById("tactileCount").textContent =
-    String(data.length);
-}
+        marker.bindPopup(popup);
+        marker.addTo(tactileLayer);
+      }
 
-// Load shared reports when the page starts.
-loadTactileReports();
+      document.getElementById("tactileCount").textContent =
+        String(data.length);
+    }
 
-
+    // Load shared reports when the page starts.
+    loadTactileReports();
 
     // 3. Convert a place name into latitude and longitude.
     async function geocode(place) {
@@ -658,17 +652,16 @@ loadTactileReports();
       );
 
       if (coordinateMatch) {
-      return {
-        lat: Number(coordinateMatch[1]),
-        lon: Number(coordinateMatch[2]),
-        name: place
-      };
-    }   
+        return {
+          lat: Number(coordinateMatch[1]),
+          lon: Number(coordinateMatch[2]),
+          name: place
+        };
+      }   
       if (locationCache.has(key)) {
         return locationCache.get(key);
       }
 
-      // Respect the public Nominatim service's rate limit.
       if (geocode.lastRequest) {
         const wait = 1100 - (Date.now() - geocode.lastRequest);
 
@@ -741,7 +734,6 @@ loadTactileReports();
         start.lon + "," + start.lat + ";" +
         destination.lon + "," + destination.lat;
 
-      
       const url =
         "https://router.project-osrm.org/route/v1/driving/" +
         coordinates +
@@ -877,283 +869,4 @@ loadTactileReports();
         {
           enableHighAccuracy: true,
           timeout: 10000,
-          maximumAge: 60000
-        }
-      );
-    }
-
-    // 8. Open the calculated journey in Google Maps.
-    function openGoogleMaps() {
-      if (!startCoords || !destinationCoords) return;
-
-      const url =
-        "https://www.google.com/maps/dir/?api=1" +
-        "&origin=" + encodeURIComponent(
-          startCoords.lat + "," + startCoords.lon
-        ) +
-        "&destination=" + encodeURIComponent(
-          destinationCoords.lat + "," + destinationCoords.lon
-        ) +
-        "&travelmode=driving";
-
-      window.open(url, "_blank", "noopener,noreferrer");
-    }
-
-    // 9. Remove the current route and markers.
-    function clearRoute() {
-      if (startMarker) map.removeLayer(startMarker);
-      if (destinationMarker) map.removeLayer(destinationMarker);
-      if (routeLine) map.removeLayer(routeLine);
-
-      startMarker = null;
-      destinationMarker = null;
-      routeLine = null;
-      startCoords = null;
-      destinationCoords = null;
-
-      document.getElementById("start").value = "";
-      document.getElementById("destination").value = "";
-
-      resetResults();
-      setStatus("Map cleared. Enter a new journey to begin.");
-      map.setView([3.139, 101.6869], 12);
-    }
-    let nearbyAlertWatchId = null;
-let nearbyReportsCache = [];
-let nearbyRefreshTimer = null;
-const alertedReportIds = new Set();
-
-const nearbyAlertBtn =
-  document.getElementById("nearbyAlertBtn");
-
-const nearbyAlertStatus =
-  document.getElementById("nearbyAlertStatus");
-
-function speakNearbyAlert(message) {
-  if (!("speechSynthesis" in window)) {
-    nearbyAlertStatus.textContent =
-      "此浏览器不支持语音播报。";
-    return;
-  }
-
-  // 避免语音排队过长
-  window.speechSynthesis.cancel();
-
-  const utterance = new SpeechSynthesisUtterance(message);
-  utterance.lang = "zh-CN";
-  utterance.rate = 1;
-  utterance.pitch = 1;
-
-  window.speechSynthesis.speak(utterance);
-}
-
-async function refreshNearbyReports() {
-  const { data, error } = await supabaseClient
-    .from("tactile_reports")
-    .select(
-      "id, issue_type, latitude, longitude, status, created_at"
-    )
-    .eq("status", "open")
-    .order("created_at", { ascending: false })
-    .limit(500);
-
-  if (error) {
-    console.error("Nearby reports error:", error);
-    nearbyAlertStatus.textContent =
-      "暂时无法更新附近的障碍物报告。";
-    return;
-  }
-
-  nearbyReportsCache = data || [];
-}
-
-function getDistanceMeters(lat1, lon1, lat2, lon2) {
-  const toRad = value => value * Math.PI / 180;
-  const earthRadius = 6371000;
-
-  const dLat = toRad(lat2 - lat1);
-  const dLon = toRad(lon2 - lon1);
-
-  const a =
-    Math.sin(dLat / 2) ** 2 +
-    Math.cos(toRad(lat1)) *
-    Math.cos(toRad(lat2)) *
-    Math.sin(dLon / 2) ** 2;
-
-  return earthRadius *
-    2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
-}
-
-function getBearingDegrees(lat1, lon1, lat2, lon2) {
-  const toRad = value => value * Math.PI / 180;
-  const toDeg = value => value * 180 / Math.PI;
-
-  const p1 = toRad(lat1);
-  const p2 = toRad(lat2);
-  const dLon = toRad(lon2 - lon1);
-
-  const y = Math.sin(dLon) * Math.cos(p2);
-  const x =
-    Math.cos(p1) * Math.sin(p2) -
-    Math.sin(p1) * Math.cos(p2) * Math.cos(dLon);
-
-  return (toDeg(Math.atan2(y, x)) + 360) % 360;
-}
-
-function angleDifference(a, b) {
-  return Math.abs(((a - b + 540) % 360) - 180);
-}
-
-function checkNearbyObstacles(position) {
-  const lat = position.coords.latitude;
-  const lon = position.coords.longitude;
-  const heading = position.coords.heading;
-  const accuracy = position.coords.accuracy || 100;
-
-  // GPS 不准确时扩大安全缓冲，不播报精确距离
-  const gpsIsUncertain = accuracy > 35;
-
-  for (const report of nearbyReportsCache) {
-    if (report.status !== "open") continue;
-    if (alertedReportIds.has(String(report.id))) continue;
-
-    const distance = getDistanceMeters(
-      lat,
-      lon,
-      report.latitude,
-      report.longitude
-    );
-
-    // 位置不准确时，避免过早或过度精确播报
-    const nearLimit = gpsIsUncertain ? 15 : 35;
-
-    if (distance > nearLimit) continue;
-
-    // 有方向时，只提醒行进方向前方约 65 度范围
-    if (
-      Number.isFinite(heading) &&
-      distance > 5
-    ) {
-      const bearing = getBearingDegrees(
-        lat,
-        lon,
-        report.latitude,
-        report.longitude
-      );
-
-      if (angleDifference(heading, bearing) > 65) {
-        continue;
-      }
-    } else if (distance > 15) {
-      // 没有方向数据时，只提醒更近的报告
-      continue;
-    }
-
-    alertedReportIds.add(String(report.id));
-
-    const issueName =
-      issueLabels[report.issue_type] || "障碍物";
-
-    const distanceText = gpsIsUncertain
-      ? "附近"
-      : distance < 10
-        ? "约十米以内"
-        : "约" + Math.round(distance / 5) * 5 + "米";
-
-    const message =
-      "注意，" + distanceText + "有" + issueName +
-      "。请减速并谨慎确认周围路况。";
-
-    nearbyAlertStatus.textContent = message;
-    speakNearbyAlert(message);
-
-    // 一次只播报一个障碍物，避免连续语音重叠
-    break;
-  }
-}
-
-async function startNearbyAlerts() {
-  if (nearbyAlertWatchId !== null) return;
-
-  if (!navigator.geolocation) {
-    nearbyAlertStatus.textContent =
-      "浏览器不支持定位功能。";
-    return;
-  }
-
-  // 必须由用户点击开启，以满足浏览器语音交互限制
-  speakNearbyAlert("附近障碍物语音提醒已开启。");
-
-  nearbyAlertBtn.disabled = true;
-  nearbyAlertStatus.textContent =
-    "正在获取位置和附近报告……";
-
-  try {
-    await refreshNearbyReports();
-  } catch (error) {
-    console.error(error);
-  }
-
-  nearbyAlertWatchId = navigator.geolocation.watchPosition(
-    position => {
-      checkNearbyObstacles(position);
-      nearbyAlertBtn.disabled = false;
-      nearbyAlertBtn.textContent = "关闭附近障碍物提醒";
-      nearbyAlertStatus.textContent =
-        "附近障碍物提醒已开启。";
-    },
-    error => {
-      const messages = {
-        1: "请允许浏览器访问位置。",
-        2: "暂时无法获取 GPS 位置。",
-        3: "定位超时，请尝试移到信号更好的地方。"
-      };
-
-      nearbyAlertStatus.textContent =
-        messages[error.code] || "定位失败。";
-
-      nearbyAlertBtn.disabled = false;
-    },
-    {
-      enableHighAccuracy: true,
-      maximumAge: 3000,
-      timeout: 15000
-    }
-  );
-
-  nearbyRefreshTimer = setInterval(
-    refreshNearbyReports,
-    30000
-  );
-}
-
-function stopNearbyAlerts() {
-  if (nearbyAlertWatchId !== null) {
-    navigator.geolocation.clearWatch(nearbyAlertWatchId);
-    nearbyAlertWatchId = null;
-  }
-
-  if (nearbyRefreshTimer !== null) {
-    clearInterval(nearbyRefreshTimer);
-    nearbyRefreshTimer = null;
-  }
-
-  if ("speechSynthesis" in window) {
-    window.speechSynthesis.cancel();
-  }
-
-  nearbyAlertBtn.disabled = false;
-  nearbyAlertBtn.textContent = "开启附近障碍物提醒";
-  nearbyAlertStatus.textContent = "附近障碍物提醒已关闭。";
-}
-
-nearbyAlertBtn.addEventListener("click", () => {
-  if (nearbyAlertWatchId === null) {
-    startNearbyAlerts();
-  } else {
-    stopNearbyAlerts();
-  }
-});
-  </script>
-</body>
-</html>
+          maximumAge: 6
