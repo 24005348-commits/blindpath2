@@ -59,12 +59,13 @@
       margin: 12px 0 6px;
     }
 
-    input {
+    input, select, textarea {
       width: 100%;
       padding: 12px;
       border: 1px solid #ccd3dd;
       border-radius: 7px;
       font-size: 15px;
+      font-family: Arial, sans-serif;
     }
 
     button {
@@ -84,6 +85,11 @@
       color: #174c3c;
     }
 
+    button.accent {
+      background: #1d4ed8;
+      color: white;
+    }
+
     button:disabled {
       opacity: 0.6;
       cursor: wait;
@@ -96,15 +102,30 @@
       z-index: 1;
     }
 
-    #status {
+    #status, #reportStatus, #nearbyAlertStatus {
       margin-top: 12px;
+      padding: 10px 12px;
+      border-radius: 7px;
+      background: #f1f5f9;
       line-height: 1.5;
       overflow-wrap: anywhere;
     }
 
+    .status-success {
+      background: #dcfce7 !important;
+      color: #166534;
+      font-weight: bold;
+    }
+
+    .status-error {
+      background: #fee2e2 !important;
+      color: #991b1b;
+      font-weight: bold;
+    }
+
     .stats {
       display: grid;
-      grid-template-columns: repeat(2, minmax(0, 1fr));
+      grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
       gap: 12px;
       margin-top: 16px;
     }
@@ -125,6 +146,12 @@
       color: #586575;
       font-size: 13px;
       line-height: 1.5;
+    }
+
+    hr {
+      border: none;
+      border-top: 1px solid #e2e8f0;
+      margin: 24px 0;
     }
 
     footer {
@@ -206,7 +233,6 @@
           Estimated duration
           <strong id="duration">—</strong>
         </div>
-
         <div class="stat tactile-highlight">
           Tactile Blind Paths Detected
           <strong id="tactileCount">—</strong>
@@ -222,20 +248,17 @@
       <hr>
 
       <h2>Nearby Obstacle Voice Alerts</h2>
-
       <p class="hint">
         Receive voice warnings about reported tactile path obstacles nearby.
       </p>
 
-      <button id="nearbyAlertBtn" type="button">
+      <button id="nearbyAlertBtn" type="button" onclick="toggleNearbyAlerts()">
         Enable Nearby Obstacle Alerts
       </button>
 
-      <div
-        id="nearbyAlertStatus"
-        role="status"
-        aria-live="polite"
-      ></div>
+      <div id="nearbyAlertStatus" role="status" aria-live="polite">
+        Nearby obstacle alerts are currently off.
+      </div>
 
       <!-- Community tactile path reports -->
       <hr>
@@ -247,18 +270,10 @@
 
       <label for="issueType">Problem type</label>
       <select id="issueType">
-        <option value="blocked_vehicle">
-          Vehicle blocking tactile path
-        </option>
-        <option value="construction">
-          Construction or roadwork
-        </option>
-        <option value="damaged_tactile_path">
-          Damaged tactile paving
-        </option>
-        <option value="other_obstacle">
-          Other obstacle
-        </option>
+        <option value="blocked_vehicle">Vehicle blocking tactile path</option>
+        <option value="construction">Construction or roadwork</option>
+        <option value="damaged_tactile_path">Damaged tactile paving</option>
+        <option value="other_obstacle">Other obstacle</option>
       </select>
 
       <label for="reportDescription">Description (optional)</label>
@@ -267,7 +282,6 @@
         maxlength="500"
         rows="3"
         placeholder="Describe the obstacle..."
-        style="width:100%;padding:12px;border:1px solid #ccd3dd;border-radius:7px;font:15px Arial,sans-serif;"
       ></textarea>
 
       <label for="reportMedia">Upload Photo or Video (optional)</label>
@@ -276,7 +290,7 @@
         type="file"
         accept="image/jpeg,image/png,image/webp,video/mp4,video/webm"
         capture="environment"
-        style="width:100%;margin:10px 0;"
+        style="margin:10px 0;"
       >
       <p class="hint">
         Supported: JPG, PNG, WebP, MP4, WebM. Maximum 20 MB per file.
@@ -292,7 +306,9 @@
         Report an issue at my location
       </button>
 
-      <div id="reportStatus" role="status" aria-live="polite"></div>
+      <div id="reportStatus" role="status" aria-live="polite">
+        Fill out the form above and click the button to submit a report.
+      </div>
     </section>
 
     <section class="panel">
@@ -329,8 +345,6 @@
       SUPABASE_KEY
     );
 
-    console.log("Supabase client initialized");
-
     // 2. Add OpenStreetMap tiles and attribution.
     L.tileLayer(
       "https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png",
@@ -348,6 +362,9 @@
     let routeLine = null;
     let startCoords = null;
     let destinationCoords = null;
+    let voiceGuidanceEnabled = true;
+    let cachedReports = [];
+    let nearbyWatchId = null;
 
     // Cache previously searched locations to reduce repeat requests.
     const locationCache = new Map();
@@ -355,9 +372,7 @@
     const statusBox = document.getElementById("status");
     const routeButton = document.getElementById("routeBtn");
 
-    function announce(message) {
-      statusBox.textContent = message;
-
+    function speakText(message) {
       if (voiceGuidanceEnabled && "speechSynthesis" in window) {
         window.speechSynthesis.cancel();
         const utterance = new SpeechSynthesisUtterance(message);
@@ -368,6 +383,11 @@
       if ("vibrate" in navigator) {
         navigator.vibrate(60);
       }
+    }
+
+    function announce(message) {
+      statusBox.textContent = message;
+      speakText(message);
     }
 
     function toggleVoiceAnnouncements() {
@@ -384,14 +404,11 @@
     function resetResults() {
       document.getElementById("distance").textContent = "—";
       document.getElementById("duration").textContent = "—";
-      document.getElementById("tactileCount").textContent = "—";
       document.getElementById("googleBtn").disabled = true;
     }
-    
-    let voiceGuidanceEnabled = true;
 
     // A separate map layer for community reports.
-    let tactileLayer = L.layerGroup().addTo(map);
+    const tactileLayer = L.layerGroup().addTo(map);
 
     const issueLabels = {
       blocked_vehicle: "Vehicle blocking tactile path",
@@ -401,11 +418,16 @@
     };
 
     function setStatus(message) {
-      document.getElementById("status").textContent = message;
+      announce(message);
     }
 
-    function setReportStatus(message) {
-      document.getElementById("reportStatus").textContent = message;
+    function setReportStatus(message, type = "normal") {
+      const box = document.getElementById("reportStatus");
+      box.textContent = message;
+      box.className = "";
+      if (type === "success") box.classList.add("status-success");
+      if (type === "error") box.classList.add("status-error");
+      speakText(message);
     }
 
     const reportMediaInput = document.getElementById("reportMedia");
@@ -424,38 +446,57 @@
       });
     }
 
+    // Helper: Get user GPS or fall back to Starting Point / Map Center so laptop testing works
+    async function getReportCoordinates() {
+      if (navigator.geolocation) {
+        try {
+          const position = await new Promise((resolve, reject) => {
+            navigator.geolocation.getCurrentPosition(resolve, reject, {
+              enableHighAccuracy: false,
+              timeout: 6000,
+              maximumAge: 60000
+            });
+          });
+          return {
+            latitude: position.coords.latitude,
+            longitude: position.coords.longitude,
+            source: "GPS"
+          };
+        } catch (gpsError) {
+          console.warn("GPS unavailable, falling back to map/start location:", gpsError);
+        }
+      }
+
+      if (startCoords) {
+        return {
+          latitude: startCoords.lat,
+          longitude: startCoords.lon,
+          source: "Starting Point"
+        };
+      }
+
+      const center = map.getCenter();
+      return {
+        latitude: center.lat,
+        longitude: center.lng,
+        source: "Map Center"
+      };
+    }
+
     async function submitCurrentReport() {
       const button = document.getElementById("reportBtn");
       const issueType = document.getElementById("issueType").value;
       const description = document.getElementById("reportDescription").value.trim();
       const mediaInput = document.getElementById("reportMedia");
 
-      if (!navigator.geolocation) {
-        setReportStatus("Your browser does not support GPS location.");
-        return;
-      }
-
       button.disabled = true;
+      button.textContent = "Submitting report...";
 
       try {
         setReportStatus("Getting your location...");
+        const { latitude, longitude, source } = await getReportCoordinates();
 
-        const position = await new Promise((resolve, reject) => {
-          navigator.geolocation.getCurrentPosition(
-            resolve,
-            reject,
-            {
-              enableHighAccuracy: true,
-              timeout: 15000,
-              maximumAge: 0
-            }
-          );
-        });
-
-        const latitude = position.coords.latitude;
-        const longitude = position.coords.longitude;
         const file = mediaInput?.files?.[0] || null;
-
         let mediaUrl = null;
         let mediaType = null;
 
@@ -483,7 +524,7 @@
             : (file.type === "image/jpeg" ? "jpg" : "upload");
 
           const uniqueName =
-            (crypto.randomUUID
+            (window.crypto && crypto.randomUUID
               ? crypto.randomUUID()
               : Date.now() + "-" + Math.random().toString(36).slice(2)) +
             "." + extension;
@@ -510,31 +551,32 @@
 
           mediaUrl = publicData?.publicUrl || null;
           mediaType = file.type.startsWith("video/") ? "video" : "image";
-
-          if (!mediaUrl) {
-            throw new Error("The file uploaded, but its public URL could not be created.");
-          }
         }
 
-        setReportStatus("Submitting your report...");
+        setReportStatus("Saving report to database...");
 
         const { error: insertError } = await supabaseClient
           .from("tactile_reports")
           .insert([{
             issue_type: issueType,
             description: description.slice(0, 500),
-            latitude,
-            longitude,
+            latitude: latitude,
+            longitude: longitude,
+            status: "open",
             media_url: mediaUrl,
             media_type: mediaType
           }]);
 
         if (insertError) {
           console.error("Supabase insert error:", insertError);
-          throw new Error("Report submission failed: " + insertError.message);
+          throw new Error("Database error: " + insertError.message);
         }
 
-        setReportStatus("Report submitted successfully. Thank you for helping other users.");
+        setReportStatus(
+          `Report submitted successfully using ${source}! Thank you for helping other users.`,
+          "success"
+        );
+
         document.getElementById("reportDescription").value = "";
         if (mediaInput) mediaInput.value = "";
 
@@ -544,21 +586,10 @@
         await loadTactileReports();
       } catch (error) {
         console.error("Report submission error:", error);
-
-        if (error && typeof error.code === "number") {
-          const locationMessages = {
-            1: "Location permission was denied. Please allow location access.",
-            2: "Your location is unavailable. Please try again.",
-            3: "Getting your location timed out. Please try again."
-          };
-          setReportStatus(
-            locationMessages[error.code] || "Unable to obtain your location."
-          );
-        } else {
-          setReportStatus(error.message || "Unable to submit report.");
-        }
+        setReportStatus(error.message || "Unable to submit report.", "error");
       } finally {
         button.disabled = false;
+        button.textContent = "Report an issue at my location";
       }
     }
 
@@ -577,9 +608,10 @@
         return;
       }
 
+      cachedReports = data || [];
       tactileLayer.clearLayers();
 
-      for (const report of data) {
+      for (const report of cachedReports) {
         const marker = L.circleMarker(
           [report.latitude, report.longitude],
           {
@@ -637,7 +669,7 @@
       }
 
       document.getElementById("tactileCount").textContent =
-        String(data.length);
+        String(cachedReports.length);
     }
 
     // Load shared reports when the page starts.
@@ -664,7 +696,6 @@
 
       if (geocode.lastRequest) {
         const wait = 1100 - (Date.now() - geocode.lastRequest);
-
         if (wait > 0) {
           await new Promise(resolve => setTimeout(resolve, wait));
         }
@@ -728,14 +759,18 @@
       map.fitBounds(bounds, { padding: [35, 35] });
     }
 
-    // 5. Find a driving route using OSRM.
+    // 5. Find a route using OSRM.
     async function getRoute(start, destination, mode) {
+      const osrmProfile =
+        mode === "walking" ? "foot" :
+        mode === "cycling" ? "bike" : "driving";
+
       const coordinates =
         start.lon + "," + start.lat + ";" +
         destination.lon + "," + destination.lat;
 
       const url =
-        "https://router.project-osrm.org/route/v1/driving/" +
+        "https://router.project-osrm.org/route/v1/" + osrmProfile + "/" +
         coordinates +
         "?overview=full&geometries=geojson&steps=true";
 
@@ -750,7 +785,7 @@
       const data = await response.json();
 
       if (data.code !== "Ok" || !data.routes.length) {
-        throw new Error("No driving route was found.");
+        throw new Error("No route was found.");
       }
 
       return data.routes[0];
@@ -759,8 +794,8 @@
     // 6. Main function: search for both places and draw the route.
     async function findRoute() {
       const startText = document.getElementById("start").value.trim();
-      const destinationText =
-        document.getElementById("destination").value.trim();
+      const destinationText = document.getElementById("destination").value.trim();
+      const mode = document.getElementById("mode").value;
 
       if (!startText || !destinationText) {
         setStatus("Please enter both a starting point and a destination.");
@@ -783,8 +818,8 @@
 
         displayLocations(start, destination);
 
-        setStatus("Calculating the driving route...");
-        const route = await getRoute(start, destination);
+        setStatus("Calculating the " + mode + " route...");
+        const route = await getRoute(start, destination, mode);
 
         if (routeLine) map.removeLayer(routeLine);
 
@@ -815,7 +850,7 @@
         document.getElementById("googleBtn").disabled = false;
 
         setStatus(
-          "Route found! The blue line shows the suggested driving route."
+          "Route found! Distance is " + km.toFixed(2) + " kilometers."
         );
       } catch (error) {
         setStatus(error.message || "Something went wrong.");
@@ -853,8 +888,7 @@
             .openPopup();
 
           setStatus(
-            "Location added as your starting point. Enter a destination " +
-            "and click Find route."
+            "Location added as your starting point. Enter a destination and click Find route."
           );
         },
         error => {
@@ -869,4 +903,92 @@
         {
           enableHighAccuracy: true,
           timeout: 10000,
-          maximumAge: 6
+          maximumAge: 60000
+        }
+      );
+    }
+
+    // 8. Clear the current route and inputs.
+    function clearRoute() {
+      document.getElementById("start").value = "";
+      document.getElementById("destination").value = "";
+      if (startMarker) map.removeLayer(startMarker);
+      if (destinationMarker) map.removeLayer(destinationMarker);
+      if (routeLine) map.removeLayer(routeLine);
+      startMarker = null;
+      destinationMarker = null;
+      routeLine = null;
+      startCoords = null;
+      destinationCoords = null;
+      resetResults();
+      setStatus("Cleared. Enter your starting point and destination to begin.");
+    }
+
+    // 9. Open the found route in Google Maps.
+    function openGoogleMaps() {
+      if (!startCoords || !destinationCoords) return;
+      const mode = document.getElementById("mode").value;
+      const url =
+        `https://www.google.com/maps/dir/?api=1` +
+        `&origin=${startCoords.lat},${startCoords.lon}` +
+        `&destination=${destinationCoords.lat},${destinationCoords.lon}` +
+        `&travelmode=${mode}`;
+      window.open(url, "_blank", "noopener");
+    }
+
+    // 10. Nearby obstacle voice alerts.
+    function toggleNearbyAlerts() {
+      const btn = document.getElementById("nearbyAlertBtn");
+      const alertStatus = document.getElementById("nearbyAlertStatus");
+
+      if (nearbyWatchId !== null) {
+        navigator.geolocation.clearWatch(nearbyWatchId);
+        nearbyWatchId = null;
+        btn.textContent = "Enable Nearby Obstacle Alerts";
+        alertStatus.textContent = "Nearby obstacle alerts are currently off.";
+        speakText("Nearby obstacle alerts disabled.");
+        return;
+      }
+
+      if (!navigator.geolocation) {
+        alertStatus.textContent = "Geolocation is not supported by your browser.";
+        return;
+      }
+
+      btn.textContent = "Disable Nearby Obstacle Alerts";
+      alertStatus.textContent = "Monitoring for nearby obstacles...";
+      speakText("Nearby obstacle alerts enabled.");
+
+      nearbyWatchId = navigator.geolocation.watchPosition(
+        pos => {
+          const userLatLng = L.latLng(pos.coords.latitude, pos.coords.longitude);
+          let closestDistance = Infinity;
+          let closestReport = null;
+
+          for (const report of cachedReports) {
+            const reportLatLng = L.latLng(report.latitude, report.longitude);
+            const dist = userLatLng.distanceTo(reportLatLng);
+            if (dist < closestDistance) {
+              closestDistance = dist;
+              closestReport = report;
+            }
+          }
+
+          if (closestReport && closestDistance <= 50) {
+            const label = issueLabels[closestReport.issue_type] || "Obstacle";
+            const msg = `Warning: ${label} reported ${Math.round(closestDistance)} meters away.`;
+            alertStatus.textContent = msg;
+            speakText(msg);
+          } else {
+            alertStatus.textContent = "No reported obstacles within 50 meters.";
+          }
+        },
+        err => {
+          alertStatus.textContent = "Unable to track location for alerts.";
+        },
+        { enableHighAccuracy: true, maximumAge: 10000, timeout: 10000 }
+      );
+    }
+  </script>
+</body>
+</html>
