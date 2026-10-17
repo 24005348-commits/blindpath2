@@ -277,9 +277,19 @@
   style="width:100%;padding:12px;border:1px solid #ccd3dd;border-radius:7px;font:15px Arial,sans-serif;"
 ></textarea>
 
-
+<label for="reportMedia">举报现场照片或视频（可选）</label>
+<input
+  id="reportMedia"
+  type="file"
+  accept="image/jpeg,image/png,image/webp,video/mp4,video/webm"
+  capture="environment"
+  style="width:100%; margin:10px 0;"
+>
+<p>支持 JPG、PNG、WebP、MP4、WebM，最大 20 MB。</p>
+      
 <label for="reportMedia">Upload Photo or Video (optional)</label>
 
+      
 <input
   id="reportMedia"
   type="file"
@@ -436,28 +446,83 @@ async function submitCurrentReport() {
   }
 
   button.disabled = true;
-  setReportStatus("Getting your location...");
+ setReportStatus("Submitting your report...");
 
-  navigator.geolocation.getCurrentPosition(
-    async position => {
-      try {
-        const latitude = position.coords.latitude;
-        const longitude = position.coords.longitude;
+let mediaUrl = null;
+let mediaType = null;
 
-        setReportStatus("Submitting your report...");
+const mediaInput = document.getElementById("reportMedia");
+const file = mediaInput?.files?.[0];
 
-        const { error } = await supabaseClient
-          .from("tactile_reports")
-          .insert([{
-            issue_type: issueType,
-            description: description.slice(0, 500),
-            latitude,
-            longitude
-          }]);
+if (file) {
+  const allowedTypes = [
+    "image/jpeg",
+    "image/png",
+    "image/webp",
+    "video/mp4",
+    "video/webm"
+  ];
 
-        if (error) {
+  if (!allowedTypes.includes(file.type)) {
+    setReportStatus("不支持此照片或视频格式。");
+    button.disabled = false;
+    return;
+  }
+
+  if (file.size > 20 * 1024 * 1024) {
+    setReportStatus("文件不能超过 20 MB。");
+    button.disabled = false;
+    return;
+  }
+
+  setReportStatus("正在上传照片或视频...");
+
+  const extension = file.name.split(".").pop().toLowerCase();
+  const uniqueName =
+    crypto.randomUUID() + "." + extension;
+  const uploadedPath = "reports/" + uniqueName;
+
+  const { error: uploadError } = await supabaseClient
+    .storage
+    .from("tactile-report-media")
+    .upload(uploadedPath, file, {
+      contentType: file.type,
+      upsert: false
+    });
+
+  if (uploadError) {
+    console.error("Media upload error:", uploadError);
+    setReportStatus("媒体上传失败：" + uploadError.message);
+    button.disabled = false;
+    return;
+  }
+
+  const { data: publicData } = supabaseClient
+    .storage
+    .from("tactile-report-media")
+    .getPublicUrl(uploadedPath);
+
+  mediaUrl = publicData.publicUrl;
+  mediaType = file.type.startsWith("video/")
+    ? "video"
+    : "image";
+}
+
+const { error } = await supabaseClient
+  .from("tactile_reports")
+  .insert([{
+    issue_type: issueType,
+    description: description.slice(0, 500),
+    latitude,
+    longitude,
+    media_url: mediaUrl,
+    media_type: mediaType
+  }]);
+
+if (error) {
   console.error("Supabase insert error:", error);
   setReportStatus("提交失败：" + error.message);
+  button.disabled = false;
   return;
 }
 
@@ -466,6 +531,9 @@ async function submitCurrentReport() {
         );
 
         document.getElementById("reportDescription").value = "";
+  if (mediaInput) {
+  mediaInput.value = "";
+}
 
         await loadTactileReports();
 
